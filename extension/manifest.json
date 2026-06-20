@@ -26,7 +26,14 @@
     {
       "matches": [
         "*://*.youtube.com/*",
-        "*://music.youtube.com/*"
+        "*://music.youtube.com/*",
+        "*://*.amazon.co.jp/gp/video/*",
+        "*://*.amazon.co.jp/v/*",
+        "*://*.amazon.co.jp/d/*",
+        "*://*.amazon.com/gp/video/*",
+        "*://*.amazon.com/v/*",
+        "*://*.amazon.com/d/*",
+        "*://*.primevideo.com/*"
       ],
       "js": [
         "content_loader.js"
@@ -40,7 +47,14 @@
       ],
       "matches": [
         "*://*.youtube.com/*",
-        "*://music.youtube.com/*"
+        "*://music.youtube.com/*",
+        "*://*.amazon.co.jp/gp/video/*",
+        "*://*.amazon.co.jp/v/*",
+        "*://*.amazon.co.jp/d/*",
+        "*://*.amazon.com/gp/video/*",
+        "*://*.amazon.com/v/*",
+        "*://*.amazon.com/d/*",
+        "*://*.primevideo.com/*"
       ]
     }
   ],

@@ -119,7 +119,10 @@ function sendToServer(msg) {
 
 // daemon が Discord Timestamps を組み立てられるよう timeLeft / duration を渡す
 function buildPresencePayload() {
-    const title = applyTitleFilter(currentMessage.title || "");
+    let title = currentMessage.title || "";
+    if (currentMessage.applicationType !== "primeVideo") {
+        title = applyTitleFilter(title);
+    }
 
     return {
         action: "UPDATE_PRESENCE",
@@ -302,14 +305,19 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     }
 });
 
-// YouTube タブが別サイトに遷移した場合もクリア
+function isSupportedUrl(url) {
+    if (!url) return false;
+    return url.includes("youtube.com") || url.includes("primevideo.com") || url.includes("amazon.co.jp") || url.includes("amazon.com");
+}
+
+// サポート対象タブが別サイトに遷移した場合もクリア
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (
         tabId === currentMessage.scriptId &&
         changeInfo.url &&
-        !changeInfo.url.includes("youtube.com")
+        !isSupportedUrl(changeInfo.url)
     ) {
-        if (LOGGING) console.log("YT-Presence: active YouTube tab navigated away, clearing");
+        if (LOGGING) console.log("YT-Presence: active tab navigated away, clearing");
         sendToServer({ action: "CLEAR_PRESENCE" });
         currentMessage.scriptId = null;
         isIdle = true;

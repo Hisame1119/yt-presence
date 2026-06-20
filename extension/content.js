@@ -30,7 +30,13 @@
     let documentData = {};
     let videoPlayer  = document.getElementById("movie_player");
 
-    if (LOGGING) console.log("YT-Presence: content.js injected into page context");
+    const isYouTubeSite = window.location.hostname.includes("youtube.com");
+    const isPrimeVideoSite = window.location.hostname.includes("primevideo.com") || window.location.hostname.includes("amazon.");
+
+    let cachedPvTitle = "";
+    let cachedPvSubtitle = "";
+
+    if (LOGGING) console.log("YT-Presence: content.js injected into page context", { isYouTubeSite, isPrimeVideoSite });
 
     // ---- Utility ----
 
@@ -242,21 +248,97 @@
         }
     }
 
+    // ---- Prime Video 向けの処理 ----
+
+    function cleanPrimeVideoTitle(title) {
+        if (!title) return "";
+        let cleaned = title;
+        // Amazon/Prime Video 特有の接頭辞/接尾辞をトリム
+        cleaned = cleaned.replace(/^Amazon\..*?:\s*/i, "");
+        cleaned = cleaned.replace(/^Watch\s+/i, "");
+        cleaned = cleaned.replace(/\s*を観る\s*\|\s*Prime\s+Video.*$/i, "");
+        cleaned = cleaned.replace(/\s*\|\s*Prime\s+Video.*$/i, "");
+        cleaned = cleaned.replace(/\s*-\s*Prime\s+Video.*$/i, "");
+        return cleaned.trim();
+    }
+
+    function handlePrimeVideoData() {
+        // 1. 再生中の <video> 要素を探す
+        const videos = Array.from(document.querySelectorAll("video"));
+        const video = videos.find(v => !v.paused && v.currentTime > 0);
+        if (!video) return;
+
+        // 2. 広告再生中かチェックする
+        const isAd = document.querySelector(
+            ".atvwebplayersdk-adtimeindicator-text, " +
+            ".atvwebplayersdk-ad-overlay, " +
+            ".ad-overlay, " +
+            ".ad-showing, " +
+            ".videoAdUi, " +
+            ".ytp-ad-player-overlay"
+        ) !== null;
+        if (isAd) return;
+
+        // 3. タイトル・サブタイトルの取得
+        const titleEl = document.querySelector(".atvwebplayersdk-title-text, .atvwebplayersdk-title");
+        const subtitleEl = document.querySelector(".atvwebplayersdk-subtitle-text, .atvwebplayersdk-subtitle");
+
+        let title = titleEl ? titleEl.textContent : "";
+        let subtitle = subtitleEl ? subtitleEl.textContent : "";
+
+        if (title) {
+            title = cleanPrimeVideoTitle(title);
+            cachedPvTitle = title;
+        } else if (cachedPvTitle) {
+            title = cachedPvTitle;
+        } else {
+            // キャッシュもなくDOMにもない場合は document.title をクリーンアップして使用
+            title = cleanPrimeVideoTitle(document.title);
+        }
+
+        if (subtitle) {
+            cachedPvSubtitle = subtitle.trim();
+            subtitle = cachedPvSubtitle;
+        } else if (cachedPvSubtitle) {
+            subtitle = cachedPvSubtitle;
+        }
+
+        // 時間情報の取得
+        const duration = video.duration || 0;
+        const currentTime = video.currentTime || 0;
+        const timeLeft = duration > 0 ? (duration - currentTime) : 0;
+
+        documentData.title = title || "Amazon Prime Video";
+        documentData.author = subtitle || ""; // Discord Rich Presence の 2行目(State)にサブタイトルを表示するため author にマップ
+        documentData.album = "";
+        documentData.videoId = "";
+        documentData.applicationType = "primeVideo";
+        documentData.thumbnailUrl = "";
+        documentData.videoUrl = window.location.href;
+        documentData.channelUrl = "";
+        documentData.duration = duration;
+        documentData.timeLeft = timeLeft;
+
+        sendDocumentData();
+    }
+
     // ---- ポーリングループ (1秒間隔) ----
-    // getPlayerState() == 1 → 再生中
-    // document.querySelector(AD_SELECTOR) == null → 広告なし
 
     setInterval(function () {
-        if (!videoPlayer) {
-            videoPlayer = document.getElementById("movie_player");
-        }
-        if (
-            videoPlayer &&
-            typeof videoPlayer.getPlayerState === "function" &&
-            videoPlayer.getPlayerState() === 1 &&
-            document.querySelector(AD_SELECTOR) === null
-        ) {
-            handleYouTubeData();
+        if (isYouTubeSite) {
+            if (!videoPlayer) {
+                videoPlayer = document.getElementById("movie_player");
+            }
+            if (
+                videoPlayer &&
+                typeof videoPlayer.getPlayerState === "function" &&
+                videoPlayer.getPlayerState() === 1 &&
+                document.querySelector(AD_SELECTOR) === null
+            ) {
+                handleYouTubeData();
+            }
+        } else if (isPrimeVideoSite) {
+            handlePrimeVideoData();
         }
     }, NORMAL_MESSAGE_DELAY);
 })();

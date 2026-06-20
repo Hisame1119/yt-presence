@@ -14,6 +14,7 @@ import (
 // Discord Application ID
 const YouTubeClientID = "1517407446862401626"
 const YouTubeMusicClientID = "1517872106094985297"
+const PrimeVideoClientID = "1517904110765084824"
 
 // LIVESTREAM_TIME_ID: ライブ配信の識別値 (拡張機能側と揃える)
 const LivestreamTimeID = -1
@@ -41,13 +42,24 @@ type PayloadData struct {
 	Duration        float64 `json:"duration"`        // 総秒数。ライブ配信時は 0
 	VideoUrl        string  `json:"videoUrl"`
 	ChannelUrl      string  `json:"channelUrl"`
-	ApplicationType string  `json:"applicationType"` // "youtube" | "youtubeMusic"
+	ApplicationType string  `json:"applicationType"` // "youtube" | "youtubeMusic" | "primeVideo"
+}
+
+// Session は接続クライアントごとの再生状態を保持する
+type Session struct {
+	LastActive time.Time
+	Payload    *PayloadData
 }
 
 var (
 	debounceTimer *time.Timer
 	mu            sync.Mutex
 	lastPayload   *PayloadData
+
+	// 複数セッション管理用の変数
+	sessions   = make(map[*websocket.Conn]*Session)
+	sessionsMu sync.Mutex
+	activeConn *websocket.Conn
 
 	// Discord RPC 接続状態
 	discordConnected bool
@@ -85,13 +97,92 @@ func main() {
 
 // ---- WebSocket ハンドラ ----
 
+func getAppPriority(appType string) int {
+	switch appType {
+	case "primeVideo":
+		return 3
+	case "youtube":
+		return 2
+	case "youtubeMusic":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func evaluateActiveSession() {
+	sessionsMu.Lock()
+	defer sessionsMu.Unlock()
+
+	now := time.Now()
+	var bestConn *websocket.Conn
+	var bestPriority = -1
+	var bestSession *Session
+
+	// 1. 期限切れセッション (3秒以上更新がない) を削除
+	for conn, sess := range sessions {
+		if now.Sub(sess.LastActive) > 3*time.Second {
+			delete(sessions, conn)
+			if activeConn == conn {
+				activeConn = nil
+			}
+		}
+	}
+
+	// 2. 現在アクティブなセッションがまだ有効 (3秒以内) かつ再生中であれば仮決定
+	var activeStillValid bool
+	if activeConn != nil {
+		if sess, exists := sessions[activeConn]; exists && now.Sub(sess.LastActive) <= 3*time.Second && sess.Payload != nil {
+			activeStillValid = true
+			bestConn = activeConn
+			bestSession = sess
+			bestPriority = getAppPriority(sess.Payload.ApplicationType)
+		}
+	}
+
+	// 3. 他のセッションを走査し、より高い優先度のセッションがあれば割り込む (Preempt)
+	for conn, sess := range sessions {
+		if conn == activeConn {
+			continue
+		}
+		if sess.Payload == nil {
+			continue
+		}
+		priority := getAppPriority(sess.Payload.ApplicationType)
+		if !activeStillValid || priority > bestPriority {
+			bestConn = conn
+			bestSession = sess
+			bestPriority = priority
+			activeStillValid = true
+		}
+	}
+
+	// 4. Presence の更新またはクリアの実行
+	if bestConn != nil && bestSession != nil && bestSession.Payload != nil {
+		activeConn = bestConn
+		queueUpdate(bestSession.Payload)
+	} else {
+		activeConn = nil
+		clearPresence()
+	}
+}
+
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("WebSocket upgrade error:", err)
 		return
 	}
-	defer c.Close()
+	defer func() {
+		sessionsMu.Lock()
+		delete(sessions, c)
+		if activeConn == c {
+			activeConn = nil
+		}
+		sessionsMu.Unlock()
+		c.Close()
+		evaluateActiveSession()
+	}()
 
 	log.Println("拡張機能からの接続を確立しました")
 	go keepAlive(c)
@@ -100,7 +191,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		_, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("WebSocket read error:", err)
-			clearPresence()
 			break
 		}
 
@@ -110,13 +200,25 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		log.Printf("受信アクション: %s\n", p.Action)
+		log.Printf("受信アクション: %s (ApplicationType: %s)\n", p.Action, p.Data.ApplicationType)
 
 		switch p.Action {
 		case "CLEAR_PRESENCE":
-			clearPresence()
+			sessionsMu.Lock()
+			delete(sessions, c)
+			if activeConn == c {
+				activeConn = nil
+			}
+			sessionsMu.Unlock()
+			evaluateActiveSession()
 		case "UPDATE_PRESENCE":
-			queueUpdate(&p.Data)
+			sessionsMu.Lock()
+			sessions[c] = &Session{
+				LastActive: time.Now(),
+				Payload:    &p.Data,
+			}
+			sessionsMu.Unlock()
+			evaluateActiveSession()
 		}
 	}
 }
@@ -165,11 +267,14 @@ func updateDiscordPresence(data *PayloadData) {
 
 	isLivestream     := data.TimeLeft == LivestreamTimeID
 	isYouTubeMusic   := data.ApplicationType == "youtubeMusic"
+	isPrimeVideo     := data.ApplicationType == "primeVideo"
 
 	// ---- Client ID 動的切り替え ----
 	targetClientID := YouTubeClientID
 	if isYouTubeMusic {
 		targetClientID = YouTubeMusicClientID
+	} else if isPrimeVideo {
+		targetClientID = PrimeVideoClientID
 	}
 
 	if discordConnected && currentClientID != targetClientID {
@@ -204,17 +309,25 @@ func updateDiscordPresence(data *PayloadData) {
 	if isLivestream && data.ThumbnailUrl == "" {
 		largeImage = "youtube"
 	}
+	if isPrimeVideo {
+		largeImage = "prime-video"
+	}
 
 	// ---- Small Image (YouTube / YouTube Music サービスアイコン) ----
 	// Discord Developer Portal の "Art Assets" にアップロードした画像名
-	smallImage := "youtube"
-	smallText  := "YouTube"
+	smallImage := ""
+	smallText  := ""
 	if isYouTubeMusic {
 		smallImage = "youtube-music"
 		smallText  = "YouTube Music"
-	}
-	if isLivestream {
-		smallText = "YouTube LIVE"
+	} else if isPrimeVideo {
+		// Prime Video has no small image
+	} else {
+		smallImage = "youtube"
+		smallText  = "YouTube"
+		if isLivestream {
+			smallText = "YouTube LIVE"
+		}
 	}
 
 	// ---- Activity Type ----
@@ -252,6 +365,8 @@ func updateDiscordPresence(data *PayloadData) {
 			label = "Listen Along"
 		} else if isLivestream {
 			label = "Watch Livestream"
+		} else if isPrimeVideo {
+			label = "Watch on Prime Video"
 		}
 		buttons = append(buttons, &client.Button{
 			Label: label,
@@ -272,6 +387,8 @@ func updateDiscordPresence(data *PayloadData) {
 		} else {
 			largeText = "YouTube Music"
 		}
+	} else if isPrimeVideo {
+		largeText = "Amazon Prime Video"
 	}
 
 	// ---- Activity 構築 ----
