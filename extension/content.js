@@ -195,26 +195,25 @@
         return cleanedTitle || title;
     }
 
-    function applyYouTubeMusicOverrides(applicationType) {
-        if (applicationType !== "youtubeMusic") return;
+    function applyPresenceOverrides(applicationType) {
+        // 1. YouTube Music 専用の処理 (MediaSession / DOM アルバム)
+        if (applicationType === "youtubeMusic") {
+            if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+                const meta = navigator.mediaSession.metadata;
+                if (meta.title)  documentData.title  = meta.title;
+                if (meta.artist) documentData.author = meta.artist;
+                if (meta.album)  documentData.album  = meta.album;
+            }
 
-        // 1. MediaSession から正確な情報を上書き
-        if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
-            const meta = navigator.mediaSession.metadata;
-            if (meta.title)  documentData.title  = meta.title;
-            if (meta.artist) documentData.author = meta.artist;
-            if (meta.album)  documentData.album  = meta.album;
-        }
-
-        // 2. アルバム名が空の場合、DOM (ytmusic-player-bar) 内のアルバムリンクから取得
-        if (!documentData.album) {
-            const albumLink = document.querySelector('ytmusic-player-bar a[href*="browse/MPREb"]');
-            if (albumLink && albumLink.innerText) {
-                documentData.album = albumLink.innerText.trim();
+            if (!documentData.album) {
+                const albumLink = document.querySelector('ytmusic-player-bar a[href*="browse/MPREb"]');
+                if (albumLink && albumLink.innerText) {
+                    documentData.album = albumLink.innerText.trim();
+                }
             }
         }
 
-        // 3. タイトル名の特別フィルタ (Covered 関連のクリーンアップ)
+        // 2. 共通のタイトルクリーンアップ (YouTube Music & YouTube)
         if (documentData.title) {
             documentData.title = cleanYouTubeMusicTitle(documentData.title);
         }
@@ -240,7 +239,7 @@
                     documentData.channelUrl = data.author_url;
                     documentData.album      = "";
 
-                    applyYouTubeMusicOverrides(applicationType);
+                    applyPresenceOverrides(applicationType);
 
                     getTimeData();
                     sendDocumentData();
@@ -250,7 +249,7 @@
                     getLivestreamData();
                     documentData.album      = "";
 
-                    applyYouTubeMusicOverrides(applicationType);
+                    applyPresenceOverrides(applicationType);
 
                     getTimeData();
                     sendDocumentData();
@@ -261,7 +260,7 @@
             getLivestreamData();
             documentData.album      = "";
 
-            applyYouTubeMusicOverrides(applicationType);
+            applyPresenceOverrides(applicationType);
 
             documentData.timeLeft = LIVESTREAM_TIME_ID;
             documentData.duration = 0;
