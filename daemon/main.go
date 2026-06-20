@@ -193,7 +193,6 @@ func updateDiscordPresence(data *PayloadData) {
 
 	// ---- Large Image (サムネイル or サービスアイコン) ----
 	largeImage := "youtube"      // Discord App Asset のデフォルト名
-	largeText  := data.Title
 
 	if data.ThumbnailUrl != "" {
 		largeImage = data.ThumbnailUrl
@@ -263,6 +262,11 @@ func updateDiscordPresence(data *PayloadData) {
 			Label: "View Channel",
 			Url:   data.ChannelUrl,
 		})
+	}
+
+	largeText := "YouTube"
+	if isYouTubeMusic {
+		largeText = "YouTube Music"
 	}
 
 	// ---- Activity 構築 ----
