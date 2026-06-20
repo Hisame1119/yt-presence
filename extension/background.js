@@ -52,7 +52,7 @@ const FILTER_PATTERNS = [
     /【.*?】/g,
     /\[.*?\]/g,
     /（.*?）/g,
-    /\(.*?\)/g,
+    /\((?!(?:covered|cover)\))[^\)]*\)/gi,
     /[-–]\s*YouTube\s*$/i,
     /\bOfficial\s+(?:Music\s+)?Video\b/gi,
     /\bOfficial\s+Audio\b/gi,

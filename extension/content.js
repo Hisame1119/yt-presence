@@ -118,6 +118,83 @@
 
     // ---- メインのデータ収集ロジック ----
 
+    function cleanYouTubeMusicTitle(title) {
+        if (!title) return title;
+
+        // カバー関連キーワードの検出 (大文字小文字を区別しない)
+        const coverKeywords = [
+            /covered\s+by/i,
+            /cover\s+by/i,
+            /covered/i,
+            /cover/i,
+            /歌ってみた/,
+            /翻唱/
+        ];
+
+        let isCover = false;
+        let cleanedTitle = title;
+
+        // 1. 各キーワードについてチェックしてクリーンアップ
+        for (const regex of coverKeywords) {
+            const match = cleanedTitle.match(regex);
+            if (match) {
+                isCover = true;
+                const index = match.index;
+                if (index === 0) {
+                    // 先頭にある場合は、そのキーワード部分だけを消去
+                    cleanedTitle = cleanedTitle.substring(match[0].length).trim();
+                } else {
+                    // 途中に発生する場合は、そこから末尾までをすべて消去
+                    // 直前のカッコ (例: "(", "（", "[", "【") やスペース、スラッシュ、縦棒などを巻き込んで消去
+                    let cutIndex = index;
+                    while (cutIndex > 0 && /[\s(（[【/\\|｜]/.test(cleanedTitle[cutIndex - 1])) {
+                        cutIndex--;
+                    }
+                    cleanedTitle = cleanedTitle.substring(0, cutIndex).trim();
+                }
+                break; // 1つのキーワードで処理したら抜ける
+            }
+        }
+
+        if (isCover) {
+            // 2. ハイフン `-` または `–` がある場合、オリジナルアーティスト名を除去して右側を曲名とする
+            // (カバー動画のタイトル "OriginalArtist - SongTitle" のパターンを想定)
+            const hyphenRegex = /\s*[-–—]\s*/;
+            if (hyphenRegex.test(cleanedTitle)) {
+                const parts = cleanedTitle.split(hyphenRegex).map(p => p.trim()).filter(Boolean);
+                if (parts.length >= 2) {
+                    cleanedTitle = parts[parts.length - 1];
+                }
+            }
+
+            // 3. スラッシュ `/` や縦棒 `|` があり、いずれかのパートが現在のアーティスト名（カバー歌手）と一致・部分一致する場合は除去する
+            if (documentData.author) {
+                const authorClean = documentData.author.toLowerCase().trim();
+                const separators = /[\s/／|｜]+\s*/;
+                if (separators.test(cleanedTitle)) {
+                    const parts = cleanedTitle.split(separators).map(p => p.trim()).filter(Boolean);
+                    const filteredParts = parts.filter(part => {
+                        const partClean = part.toLowerCase();
+                        return !partClean.includes(authorClean) && !authorClean.includes(partClean);
+                    });
+                    if (filteredParts.length > 0) {
+                        cleanedTitle = filteredParts.join(" ");
+                    }
+                }
+            }
+
+            // 4. カッコ類の残骸や不要な記号のトリム
+            cleanedTitle = cleanedTitle.replace(/^[\s(（[【/\\|｜]+|[\s)）\]】/\\|｜]+$/g, "").trim();
+
+            // 5. (covered) を付与
+            if (cleanedTitle) {
+                cleanedTitle = `${cleanedTitle} (covered)`;
+            }
+        }
+
+        return cleanedTitle || title;
+    }
+
     function applyYouTubeMusicOverrides(applicationType) {
         if (applicationType !== "youtubeMusic") return;
 
@@ -135,6 +212,11 @@
             if (albumLink && albumLink.innerText) {
                 documentData.album = albumLink.innerText.trim();
             }
+        }
+
+        // 3. タイトル名の特別フィルタ (Covered 関連のクリーンアップ)
+        if (documentData.title) {
+            documentData.title = cleanYouTubeMusicTitle(documentData.title);
         }
     }
 
