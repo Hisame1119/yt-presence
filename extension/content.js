@@ -330,7 +330,7 @@
         documentData.videoId = "";
         documentData.applicationType = "primeVideo";
         documentData.thumbnailUrl = cachedPvThumbnail || ""; // キャッシュした高解像度ポスター画像URLを渡す
-        documentData.videoUrl = window.location.href;
+        documentData.videoUrl = window.location.href.includes("/downloads") ? "" : window.location.href;
         documentData.channelUrl = "";
         documentData.duration = duration;
         documentData.timeLeft = timeLeft;
