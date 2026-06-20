@@ -154,8 +154,10 @@
             }
         }
 
-        // カッコや記号の残骸をクリーンアップ
-        cleaned = cleaned.replace(/^[\s(（/\\|｜]+|[\s)）/\\|｜]+$/g, "").trim();
+        // カッコや記号の残骸をクリーンアップ (バランスの取れたカッコを壊さないように配慮)
+        cleaned = cleaned.replace(/^[\s/\\|｜\-—–~～,，.]+|[\s/\\|｜\-—–~～,，.]+$/g, "").trim();
+        cleaned = cleaned.replace(/[\s(（\[【]+$/, "").trim();
+        cleaned = cleaned.replace(/^[\s)）\]】]+/, "").trim();
 
         // 5. カバー判定
         const isCover = /cover|歌ってみた|翻唱/i.test(originalTitle);
