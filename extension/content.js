@@ -35,6 +35,7 @@
 
     let cachedPvTitle = "";
     let cachedPvSubtitle = "";
+    let cachedPvThumbnail = "";
 
     if (LOGGING) console.log("YT-Presence: content.js injected into page context", { isYouTubeSite, isPrimeVideoSite });
 
@@ -262,6 +263,19 @@
         return cleaned.trim();
     }
 
+    function cleanPrimeVideoSubtitle(subtitle) {
+        if (!subtitle) return "";
+        let cleaned = subtitle.trim();
+        // シーズン・エピソード接頭辞を除去
+        // 日本語パターン: シーズン1、エピソード11
+        cleaned = cleaned.replace(/^シーズン\s*\d+\s*[、,，]?\s*エピソード\s*\d+\s*/, "");
+        // 英語パターン: Season 1, Episode 11 or Season 1, Ep. 11
+        cleaned = cleaned.replace(/^Season\s*\d+\s*[、,，]?\s*(?:Episode|Ep\.)\s*\d+\s*/i, "");
+        // その他の一般的なパターン (S1 E11 など)
+        cleaned = cleaned.replace(/^S\d+\s*E\d+\s*/i, "");
+        return cleaned.trim();
+    }
+
     function handlePrimeVideoData() {
         // 1. 再生中の <video> 要素を探す
         const videos = Array.from(document.querySelectorAll("video"));
@@ -288,20 +302,22 @@
 
         if (title) {
             title = cleanPrimeVideoTitle(title);
-            cachedPvTitle = title;
-        } else if (cachedPvTitle) {
-            title = cachedPvTitle;
-        } else {
-            // キャッシュもなくDOMにもない場合は document.title をクリーンアップして使用
-            title = cleanPrimeVideoTitle(document.title);
+            if (title && title !== "Prime Video" && title !== "Amazon プライム・ビデオ") {
+                cachedPvTitle = title;
+            }
         }
 
+        // キャッシュを優先し、なければ document.title フォールバック
+        title = cachedPvTitle || cleanPrimeVideoTitle(document.title);
+
         if (subtitle) {
-            cachedPvSubtitle = subtitle.trim();
-            subtitle = cachedPvSubtitle;
-        } else if (cachedPvSubtitle) {
-            subtitle = cachedPvSubtitle;
+            subtitle = cleanPrimeVideoSubtitle(subtitle);
+            if (subtitle) {
+                cachedPvSubtitle = subtitle;
+            }
         }
+
+        subtitle = cachedPvSubtitle;
 
         // 時間情報の取得
         const duration = video.duration || 0;
@@ -313,7 +329,7 @@
         documentData.album = "";
         documentData.videoId = "";
         documentData.applicationType = "primeVideo";
-        documentData.thumbnailUrl = "";
+        documentData.thumbnailUrl = cachedPvThumbnail || ""; // キャッシュした高解像度ポスター画像URLを渡す
         documentData.videoUrl = window.location.href;
         documentData.channelUrl = "";
         documentData.duration = duration;
@@ -338,6 +354,27 @@
                 handleYouTubeData();
             }
         } else if (isPrimeVideoSite) {
+            // 再生開始前でも、詳細ページ等から作品タイトルとポスターサムネイルを常時キャッシュしておく
+            if (document.title && document.title !== "Prime Video" && document.title !== "Amazon プライム・ビデオ") {
+                const cleaned = cleanPrimeVideoTitle(document.title);
+                if (cleaned && cleaned !== "Prime Video" && cleaned !== "Amazon プライム・ビデオ") {
+                    cachedPvTitle = cleaned;
+                }
+            }
+            const titleEl = document.querySelector('[data-automation-id="title"], h1[data-testid="title"], .atvwebplayersdk-title-text');
+            if (titleEl && titleEl.textContent && titleEl.textContent.trim() !== "Prime Video" && titleEl.textContent.trim() !== "Amazon プライム・ビデオ") {
+                const cleaned = cleanPrimeVideoTitle(titleEl.textContent);
+                if (cleaned) {
+                    cachedPvTitle = cleaned;
+                }
+            }
+
+            // ポスター画像を検索してキャッシュ (pv-target-images フォルダの画像が Amazon の番組/映画ポスターのCDNパス)
+            const imgEl = document.querySelector('img[src*="pv-target-images/"]');
+            if (imgEl && imgEl.src) {
+                cachedPvThumbnail = imgEl.src;
+            }
+
             handlePrimeVideoData();
         }
     }, NORMAL_MESSAGE_DELAY);
