@@ -118,6 +118,26 @@
 
     // ---- メインのデータ収集ロジック ----
 
+    function applyYouTubeMusicOverrides(applicationType) {
+        if (applicationType !== "youtubeMusic") return;
+
+        // 1. MediaSession から正確な情報を上書き
+        if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+            const meta = navigator.mediaSession.metadata;
+            if (meta.title)  documentData.title  = meta.title;
+            if (meta.artist) documentData.author = meta.artist;
+            if (meta.album)  documentData.album  = meta.album;
+        }
+
+        // 2. アルバム名が空の場合、DOM (ytmusic-player-bar) 内のアルバムリンクから取得
+        if (!documentData.album) {
+            const albumLink = document.querySelector('ytmusic-player-bar a[href*="browse/MPREb"]');
+            if (albumLink && albumLink.innerText) {
+                documentData.album = albumLink.innerText.trim();
+            }
+        }
+    }
+
     function handleYouTubeData() {
         const isLivestream   = !!videoPlayer.querySelector(LIVESTREAM_ELEMENT_SELECTOR);
         const rawVideoUrl    = videoPlayer.getVideoUrl ? videoPlayer.getVideoUrl() : window.location.href;
@@ -138,13 +158,7 @@
                     documentData.channelUrl = data.author_url;
                     documentData.album      = "";
 
-                    // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
-                    if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
-                        const meta = navigator.mediaSession.metadata;
-                        if (meta.title)  documentData.title  = meta.title;
-                        if (meta.artist) documentData.author = meta.artist;
-                        if (meta.album)  documentData.album  = meta.album;
-                    }
+                    applyYouTubeMusicOverrides(applicationType);
 
                     getTimeData();
                     sendDocumentData();
@@ -154,13 +168,7 @@
                     getLivestreamData();
                     documentData.album      = "";
 
-                    // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
-                    if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
-                        const meta = navigator.mediaSession.metadata;
-                        if (meta.title)  documentData.title  = meta.title;
-                        if (meta.artist) documentData.author = meta.artist;
-                        if (meta.album)  documentData.album  = meta.album;
-                    }
+                    applyYouTubeMusicOverrides(applicationType);
 
                     getTimeData();
                     sendDocumentData();
@@ -171,13 +179,7 @@
             getLivestreamData();
             documentData.album      = "";
 
-            // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
-            if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
-                const meta = navigator.mediaSession.metadata;
-                if (meta.title)  documentData.title  = meta.title;
-                if (meta.artist) documentData.author = meta.artist;
-                if (meta.album)  documentData.album  = meta.album;
-            }
+            applyYouTubeMusicOverrides(applicationType);
 
             documentData.timeLeft = LIVESTREAM_TIME_ID;
             documentData.duration = 0;
