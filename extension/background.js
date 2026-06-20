@@ -51,8 +51,8 @@ chrome.storage.local.get(["enabled", "filterEnabled"], (result) => {
 const FILTER_PATTERNS = [
     /【.*?】/g,
     /\[.*?\]/g,
-    /（.*?）/g,
-    /\((?!(?:covered|cover)\))[^\)]*\)/gi,
+    /（(?=[^）]*(?:official|audio|lyric|video|mv|pv|hd|teaser|trailer|公式|音源|映像|ビデオ))[^）]*）/gi,
+    /\((?=[^\)]*(?:official|audio|lyric|video|mv|pv|hd|teaser|trailer))[^\)]*\)/gi,
     /[-–]\s*YouTube\s*$/i,
     /\bOfficial\s+(?:Music\s+)?Video\b/gi,
     /\bOfficial\s+Audio\b/gi,
