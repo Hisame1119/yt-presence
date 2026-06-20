@@ -178,16 +178,12 @@
                 }
             }
 
-            // リンク先を YouTube Music のドメインに変更
+            // リンク先を YouTube Music のドメインに変更 (重複置換を防ぐため正規表現を使用)
             if (documentData.channelUrl) {
-                documentData.channelUrl = documentData.channelUrl
-                    .replace("www.youtube.com", "music.youtube.com")
-                    .replace("youtube.com", "music.youtube.com");
+                documentData.channelUrl = documentData.channelUrl.replace(/^(https?:\/\/)(?:www\.)?youtube\.com/, "$1music.youtube.com");
             }
             if (documentData.videoUrl) {
-                documentData.videoUrl = documentData.videoUrl
-                    .replace("www.youtube.com", "music.youtube.com")
-                    .replace("youtube.com", "music.youtube.com");
+                documentData.videoUrl = documentData.videoUrl.replace(/^(https?:\/\/)(?:www\.)?youtube\.com/, "$1music.youtube.com");
             }
         }
 
