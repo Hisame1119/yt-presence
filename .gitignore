@@ -1,0 +1,10 @@
+# Compiled Go binaries
+daemon/yt-presence.exe
+daemon/installer/yt-presence-installer.exe
+
+# 最終成果物のインストーラーはコミットに含めるため除外を解除
+!yt-presence-installer.exe
+
+# OS generated files
+.DS_Store
+Thumbs.db
