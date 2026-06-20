@@ -35,9 +35,10 @@ type Payload struct {
 type PayloadData struct {
 	Title           string  `json:"title"`
 	Author          string  `json:"author"`
+	Album           string  `json:"album"`           // アルバム名 (YouTube Music 用)
 	ThumbnailUrl    string  `json:"thumbnailUrl"`
-	TimeLeft        float64 `json:"timeLeft"`   // 残り秒数。-1 はライブ配信
-	Duration        float64 `json:"duration"`   // 総秒数。ライブ配信時は 0
+	TimeLeft        float64 `json:"timeLeft"`        // 残り秒数。-1 はライブ配信
+	Duration        float64 `json:"duration"`        // 総秒数。ライブ配信時は 0
 	VideoUrl        string  `json:"videoUrl"`
 	ChannelUrl      string  `json:"channelUrl"`
 	ApplicationType string  `json:"applicationType"` // "youtube" | "youtubeMusic"
@@ -266,7 +267,11 @@ func updateDiscordPresence(data *PayloadData) {
 
 	largeText := "YouTube"
 	if isYouTubeMusic {
-		largeText = "YouTube Music"
+		if data.Album != "" {
+			largeText = data.Album
+		} else {
+			largeText = "YouTube Music"
+		}
 	}
 
 	// ---- Activity 構築 ----

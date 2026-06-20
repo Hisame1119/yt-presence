@@ -30,6 +30,7 @@ window.addEventListener("SendToLoader", function (message) {
             channelUrl: message.detail.channelUrl,
             applicationType: message.detail.applicationType,
             thumbnailUrl: message.detail.thumbnailUrl,
+            album: message.detail.album,
         }, (response) => {
             if (LOGGING) {
                 console.log("YT-Presence: content_loader -> background relay done", message.detail);

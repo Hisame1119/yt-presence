@@ -132,6 +132,7 @@ function buildPresencePayload() {
             videoUrl:        currentMessage.videoUrl || "",
             channelUrl:      currentMessage.channelUrl || "",
             applicationType: currentMessage.applicationType || "youtube",
+            album:           (currentMessage.album || "").substring(0, 128),
         }
     };
 }
@@ -274,6 +275,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         currentMessage.channelUrl    = message.channelUrl;
         currentMessage.applicationType = message.applicationType;
         currentMessage.thumbnailUrl  = message.thumbnailUrl;
+        currentMessage.album         = message.album || "";
 
         lastUpdated = Date.now();
         sendResponse(null);

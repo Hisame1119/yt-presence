@@ -136,12 +136,32 @@
                     documentData.title      = data.title;
                     documentData.author     = data.author_name;
                     documentData.channelUrl = data.author_url;
+                    documentData.album      = "";
+
+                    // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
+                    if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
+                        const meta = navigator.mediaSession.metadata;
+                        if (meta.title)  documentData.title  = meta.title;
+                        if (meta.artist) documentData.author = meta.artist;
+                        if (meta.album)  documentData.album  = meta.album;
+                    }
+
                     getTimeData();
                     sendDocumentData();
                 })
                 .catch(error => {
                     // oEmbed 失敗時は DOM fallback
                     getLivestreamData();
+                    documentData.album      = "";
+
+                    // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
+                    if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
+                        const meta = navigator.mediaSession.metadata;
+                        if (meta.title)  documentData.title  = meta.title;
+                        if (meta.artist) documentData.author = meta.artist;
+                        if (meta.album)  documentData.album  = meta.album;
+                    }
+
                     getTimeData();
                     sendDocumentData();
                     if (LOGGING) console.error("YT-Presence: oEmbed failed, using DOM fallback", error);
@@ -149,6 +169,16 @@
         } else {
             // ライブ配信: timeLeft = LIVESTREAM_TIME_ID (-1)
             getLivestreamData();
+            documentData.album      = "";
+
+            // YouTube Music の場合、MediaSession からアーティスト名・曲名・アルバム名を取得して上書き
+            if (applicationType === "youtubeMusic" && 'mediaSession' in navigator && navigator.mediaSession.metadata) {
+                const meta = navigator.mediaSession.metadata;
+                if (meta.title)  documentData.title  = meta.title;
+                if (meta.artist) documentData.author = meta.artist;
+                if (meta.album)  documentData.album  = meta.album;
+            }
+
             documentData.timeLeft = LIVESTREAM_TIME_ID;
             documentData.duration = 0;
             sendDocumentData();
