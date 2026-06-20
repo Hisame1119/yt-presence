@@ -48,12 +48,8 @@
       "matches": [
         "*://*.youtube.com/*",
         "*://music.youtube.com/*",
-        "*://*.amazon.co.jp/gp/video/*",
-        "*://*.amazon.co.jp/v/*",
-        "*://*.amazon.co.jp/d/*",
-        "*://*.amazon.com/gp/video/*",
-        "*://*.amazon.com/v/*",
-        "*://*.amazon.com/d/*",
+        "*://*.amazon.co.jp/*",
+        "*://*.amazon.com/*",
         "*://*.primevideo.com/*"
       ]
     }
