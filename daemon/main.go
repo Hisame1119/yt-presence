@@ -119,9 +119,9 @@ func evaluateActiveSession() {
 	var bestPriority = -1
 	var bestSession *Session
 
-	// 1. 期限切れセッション (3秒以上更新がない) を削除
+	// 1. 期限切れセッション (25秒以上更新がない) を削除
 	for conn, sess := range sessions {
-		if now.Sub(sess.LastActive) > 3*time.Second {
+		if now.Sub(sess.LastActive) > 25*time.Second {
 			delete(sessions, conn)
 			if activeConn == conn {
 				activeConn = nil
@@ -129,10 +129,10 @@ func evaluateActiveSession() {
 		}
 	}
 
-	// 2. 現在アクティブなセッションがまだ有効 (3秒以内) かつ再生中であれば仮決定
+	// 2. 現在アクティブなセッションがまだ有効 (25秒以内) かつ再生中であれば仮決定
 	var activeStillValid bool
 	if activeConn != nil {
-		if sess, exists := sessions[activeConn]; exists && now.Sub(sess.LastActive) <= 3*time.Second && sess.Payload != nil {
+		if sess, exists := sessions[activeConn]; exists && now.Sub(sess.LastActive) <= 25*time.Second && sess.Payload != nil {
 			activeStillValid = true
 			bestConn = activeConn
 			bestSession = sess
