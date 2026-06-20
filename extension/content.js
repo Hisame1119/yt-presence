@@ -177,6 +177,18 @@
                     documentData.album = albumLink.innerText.trim();
                 }
             }
+
+            // リンク先を YouTube Music のドメインに変更
+            if (documentData.channelUrl) {
+                documentData.channelUrl = documentData.channelUrl
+                    .replace("www.youtube.com", "music.youtube.com")
+                    .replace("youtube.com", "music.youtube.com");
+            }
+            if (documentData.videoUrl) {
+                documentData.videoUrl = documentData.videoUrl
+                    .replace("www.youtube.com", "music.youtube.com")
+                    .replace("youtube.com", "music.youtube.com");
+            }
         }
 
         // 2. 共通のタイトルクリーンアップ (YouTube Music & YouTube)
